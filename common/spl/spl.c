@@ -512,8 +512,11 @@ static struct spl_image_loader *spl_ll_find_loader(uint boot_device)
 	struct spl_image_loader *entry;
 
 	for (entry = drv; entry != drv + n_ents; entry++) {
-		if (boot_device == entry->boot_device)
+		printf("checking boot entry %s\n", entry->name);
+		if (boot_device == entry->boot_device){
+			printf("matched boot entry %s\n", entry->name);
 			return entry;
+		}
 	}
 
 	/* Not found */

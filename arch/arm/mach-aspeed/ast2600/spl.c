@@ -13,6 +13,12 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#define AST_BOOTMODE_SPI	0
+#define AST_BOOTMODE_EMMC	1
+#define AST_BOOTMODE_UART	2
+
+u32 aspeed_bootmode(void);
+
 void board_init_f(ulong dummy)
 {
 	spl_early_init();
@@ -23,7 +29,20 @@ void board_init_f(ulong dummy)
 
 u32 spl_boot_device(void)
 {
-	return BOOT_DEVICE_RAM;
+	switch (aspeed_bootmode()) {
+	case AST_BOOTMODE_EMMC:
+		puts("booting from MMC1\n");
+		return BOOT_DEVICE_MMC1;
+	case AST_BOOTMODE_SPI:
+		puts("booting from SPI\n");
+		return BOOT_DEVICE_SPI;
+	case AST_BOOTMODE_UART:
+		puts("booting from UART\n");
+		return BOOT_DEVICE_UART;
+	default:
+		break;
+	}
+	return BOOT_DEVICE_NONE;
 }
 
 struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
