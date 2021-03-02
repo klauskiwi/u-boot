@@ -697,6 +697,13 @@ config SPL_MMC_SUPPORT
 	  this option to build the drivers in drivers/mmc as part of an SPL
 	  build.
 
+config SPL_MMC_VERBOSE
+	bool "Output mode information about the MMC"
+	depends on SPL_MMC_SUPPORT
+	help
+	  Enable the output of more information about the card such as the
+	  operating mode.
+
 config SYS_MMCSD_FS_BOOT_PARTITION
 	int "MMC Boot Partition"
 	default 1
