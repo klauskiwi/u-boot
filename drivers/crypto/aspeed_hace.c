@@ -7,6 +7,7 @@
 #include <common.h>
 #include <log.h>
 #include <asm/io.h>
+#include <malloc.h>
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -89,20 +90,83 @@ void hw_sha512(const unsigned char *pbuf, unsigned int buf_len,
 }
 
 #if IS_ENABLED(CONFIG_SHA_PROG_HW_ACCEL)
-int hw_sha_init(struct hash_algo *algo, void **ctxp)
+int aspeed_sg_digest(struct aspeed_sg_list *src_list,
+					 unsigned int list_length, unsigned int length,
+					 void *digest, unsigned int method)
 {
-	return -ENOTSUPP;
+	writel((u32)src_list, ASPEED_HACE_HASH_SRC);
+	writel((u32)digest, ASPEED_HACE_HASH_DIGEST_BUFF);
+	writel(length, ASPEED_HACE_HASH_DATA_LEN);
+	writel(HACE_SHA_BE_EN | HACE_SG_EN | method, ASPEED_HACE_HASH_CMD);
+
+	return ast_hace_wait_isr(ASPEED_HACE_STS, HACE_HASH_ISR, 100000);
 }
 
+int hw_sha_init(struct hash_algo *algo, void **ctxp)
+{
+	u32 method;
+		
+	if (!strcmp(algo->name, "sha1"))
+		method = HACE_ALGO_SHA1;
+	else if (!strcmp(algo->name, "sha256"))
+		method = HACE_ALGO_SHA256;
+	else if (!strcmp(algo->name, "sha512"))
+		method = HACE_ALGO_SHA512;
+	else 
+		return -ENOTSUPP;
+
+	*ctxp = calloc(1, sizeof(struct aspeed_hash_ctx));
+
+	if (*ctxp == NULL) {
+		debug("Cannot allocate memory for context\n");
+		return -ENOMEM;
+	}
+	((struct aspeed_hash_ctx *) *ctxp)->method = method;
+
+	return 0;
+}
+
+#define ASPEED_SG_ADDR_MASK		BIT(31)
+#define ASPEED_SG_LEN_MASK		(BIT(31) | BIT(30) | BIT(29) | BIT(28))
 int hw_sha_update(struct hash_algo *algo, void *ctx, const void *buf,
 			    unsigned int size, int is_last)
 {
-	return -ENOTSUPP;
+	phys_addr_t addr = virt_to_phys((void *)buf);
+	struct aspeed_hash_ctx *hash_ctx = ctx;
+
+	if ( (hash_ctx->sg_num >= MAX_SG_32)
+//		 || (addr & ASPEED_SG_ADDR_MASK)
+//		 || (size & ASPEED_SG_LEN_MASK)
+		) {
+		free(ctx);
+		return -EINVAL;
+	}
+	hash_ctx->sg_tbl[hash_ctx->sg_num].phy_addr = addr;
+	hash_ctx->sg_tbl[hash_ctx->sg_num].len = size;
+	if (is_last)
+		hash_ctx->sg_tbl[hash_ctx->sg_num].len &= BIT(31);
+	hash_ctx->sg_num++;
+	hash_ctx->len += size;
+
+	return 0;
 }
 
 int hw_sha_finish(struct hash_algo *algo, void *ctx, void *dest_buf,
 		     int size)
 {
-	return -ENOTSUPP;
+	struct aspeed_hash_ctx *hash_ctx = ctx;
+	int rc;
+
+	if (size != hash_ctx->len) {
+		free(ctx);
+		return -EINVAL;
+	}
+
+	rc = aspeed_sg_digest(hash_ctx->sg_tbl, hash_ctx->sg_num, hash_ctx->len, dest_buf, hash_ctx->method);
+	if (rc)
+		debug("HACE Scatter-gather failure\n");
+	free(ctx);
+
+	return rc;
 }
 #endif
