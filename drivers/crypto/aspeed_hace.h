@@ -56,11 +56,11 @@ struct aspeed_sg_list {
 } __packed;
 
 struct aspeed_hash_ctx {
+	struct aspeed_sg_list sg_tbl[MAX_SG_32];
 	u32 method;
 	u32 digest_size;
 	u32 len;
 	u32 sg_num;
-	struct aspeed_sg_list sg_tbl[MAX_SG_32] __attribute__((aligned(8)));
 };
 
 #endif /* #ifndef ASPEED_HACE_H */

@@ -123,13 +123,15 @@ int hw_sha_init(struct hash_algo *algo, void **ctxp)
 		return -ENOTSUPP;
 	}
 
-	hash_ctx = calloc(1, sizeof(struct aspeed_hash_ctx));
+	hash_ctx = memalign(8, sizeof(struct aspeed_hash_ctx));
 
 	if (hash_ctx == NULL) {
 		debug("Cannot allocate memory for context\n");
 		return -ENOMEM;
 	}
 	hash_ctx->method = method;
+	hash_ctx->sg_num = 0;
+	hash_ctx->len = 0;
 	hash_ctx->digest_size = digest_size;
 	*ctxp = hash_ctx;
 
@@ -162,18 +164,32 @@ int hw_sha_finish(struct hash_algo *algo, void *ctx, void *dest_buf,
 		     int size)
 {
 	struct aspeed_hash_ctx *hash_ctx = ctx;
+	void *digest;
 	int rc;
 
 	if (size < hash_ctx->digest_size) {
 		debug("HACE error: insufficient size on destination buffer\n");
-		free(ctx);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto cleanup;
+	}
+	digest = memalign(8, hash_ctx->digest_size);
+	
+	if (digest == NULL) {
+		debug("HACE error: Cannot allocate memory for digest buffer\n");
+		rc = -ENOMEM;
+		goto cleanup;
 	}
 
 	rc = aspeed_sg_digest(hash_ctx->sg_tbl, hash_ctx->sg_num,
-						  hash_ctx->len, dest_buf, hash_ctx->method);
+						  hash_ctx->len, digest, hash_ctx->method);
 	if (rc)
 		debug("HACE Scatter-Gather failure\n");
+	else
+		memcpy(dest_buf, digest, hash_ctx->digest_size);
+
+cleanup:
+	if (digest)
+		free(digest);
 	free(ctx);
 
 	return rc;
