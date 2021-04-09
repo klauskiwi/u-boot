@@ -26,12 +26,15 @@ static int ast_hace_wait_isr(u32 reg, u32 flag, int timeout_us)
 int digest_object(const void *src, unsigned int length, void *digest,
 		  u32 method)
 {
+	/* clear any pending interrupts */
+	writel(HACE_HASH_ISR, ASPEED_HACE_STS);
+
 	writel((u32)src, ASPEED_HACE_HASH_SRC);
 	writel((u32)digest, ASPEED_HACE_HASH_DIGEST_BUFF);
 	writel(length, ASPEED_HACE_HASH_DATA_LEN);
 	writel(HACE_SHA_BE_EN | method, ASPEED_HACE_HASH_CMD);
 
-	return ast_hace_wait_isr(ASPEED_HACE_STS, HACE_HASH_ISR, 1000);
+	return ast_hace_wait_isr(ASPEED_HACE_STS, HACE_HASH_ISR, 100000);
 }
 
 static bool crypto_enabled;
@@ -94,6 +97,10 @@ int aspeed_sg_digest(struct aspeed_sg_list *src_list,
 					 unsigned int list_length, unsigned int length,
 					 void *digest, unsigned int method)
 {
+	
+	/* clear any pending interrupts */
+	writel(HACE_HASH_ISR, ASPEED_HACE_STS);
+
 	writel((u32)src_list, ASPEED_HACE_HASH_SRC);
 	writel((u32)digest, ASPEED_HACE_HASH_DIGEST_BUFF);
 	writel(length, ASPEED_HACE_HASH_DATA_LEN);
@@ -179,6 +186,8 @@ int hw_sha_finish(struct hash_algo *algo, void *ctx, void *dest_buf,
 		rc = -ENOMEM;
 		goto cleanup;
 	}
+
+	enable_crypto();
 
 	rc = aspeed_sg_digest(hash_ctx->sg_tbl, hash_ctx->sg_num,
 						  hash_ctx->len, digest, hash_ctx->method);
