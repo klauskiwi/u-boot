@@ -4,6 +4,9 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+
+//#define DEBUG 1
+
 #include <common.h>
 #include <log.h>
 #include <asm/io.h>
@@ -29,12 +32,26 @@ static bool crypto_enabled = false;
 int digest_object(const void *src, unsigned int length, void *digest,
 		  u32 method)
 {
+	debug("\n%s: ASPEED_HACE_STS='0x%08x'\n", __func__, readl(ASPEED_HACE_STS));
+	debug("\n%s: SCU080h='0x%08x'\n", __func__, readl(SCU_BASE + 0x80));
+
 	/* clear any pending interrupts */
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_STS\n", __func__, HACE_HASH_ISR);
 	writel(HACE_HASH_ISR, ASPEED_HACE_STS);
 
+	debug("\n%s: ASPEED_HACE_STS='0x%08x'\n", __func__, readl(ASPEED_HACE_STS));
+	debug("\n%s: SCU080h='0x%08x'\n", __func__, readl(SCU_BASE + 0x80));
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_SRC\n", __func__, (u32)src);
 	writel((u32)src, ASPEED_HACE_HASH_SRC);
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_DIGEST_BUFF\n", __func__, (u32)digest);
 	writel((u32)digest, ASPEED_HACE_HASH_DIGEST_BUFF);
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_DATA_LEN\n", __func__, length);
 	writel(length, ASPEED_HACE_HASH_DATA_LEN);
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_CMD\n", __func__, HACE_SHA_BE_EN | method);
 	writel(HACE_SHA_BE_EN | method, ASPEED_HACE_HASH_CMD);
 
 	return ast_hace_wait_isr(ASPEED_HACE_STS, HACE_HASH_ISR, 100000);
@@ -98,12 +115,26 @@ int aspeed_sg_digest(struct aspeed_sg_list *src_list,
 					 void *digest, unsigned int method)
 {
 	
+	debug("\n%s: ASPEED_HACE_STS='0x%08x'\n", __func__, readl(ASPEED_HACE_STS));
+	debug("\n%s: SCU080h='0x%08x'\n", __func__, readl(SCU_BASE + 0x80));
+
 	/* clear any pending interrupts */
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_STS\n", __func__, HACE_HASH_ISR);
 	writel(HACE_HASH_ISR, ASPEED_HACE_STS);
 
+	debug("\n%s: ASPEED_HACE_STS='0x%08x'\n", __func__, readl(ASPEED_HACE_STS));
+	debug("\n%s: SCU080h='0x%08x'\n", __func__, readl(SCU_BASE + 0x80));
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_SRC\n", __func__, (u32)src_list);
 	writel((u32)src_list, ASPEED_HACE_HASH_SRC);
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_DIGEST_BUFF\n", __func__, (u32)digest);
 	writel((u32)digest, ASPEED_HACE_HASH_DIGEST_BUFF);
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_DATA_LEN\n", __func__, length);
 	writel(length, ASPEED_HACE_HASH_DATA_LEN);
+
+	debug("\n%s: writing '0x%08x' to ASPEED_HACE_HASH_CMD\n", __func__, HACE_SHA_BE_EN | HACE_SG_EN | method);
 	writel(HACE_SHA_BE_EN | HACE_SG_EN | method, ASPEED_HACE_HASH_CMD);
 
 	return ast_hace_wait_isr(ASPEED_HACE_STS, HACE_HASH_ISR, 100000);
