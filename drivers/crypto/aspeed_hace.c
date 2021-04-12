@@ -22,6 +22,9 @@ static int ast_hace_wait_isr(u32 reg, u32 flag, int timeout_us)
 
 	return readl_poll_timeout(reg, val, (val & flag) == flag, timeout_us);
 }
+static bool crypto_enabled = false;
+
+#define SCU_BASE	0x1e6e2000
 
 int digest_object(const void *src, unsigned int length, void *digest,
 		  u32 method)
@@ -37,9 +40,6 @@ int digest_object(const void *src, unsigned int length, void *digest,
 	return ast_hace_wait_isr(ASPEED_HACE_STS, HACE_HASH_ISR, 100000);
 }
 
-static bool crypto_enabled;
-
-#define SCU_BASE	0x1e6e2000
 static void enable_crypto(void)
 {
 	if (crypto_enabled)
